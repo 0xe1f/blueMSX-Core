@@ -22,9 +22,10 @@
 /* End PBXAggregateTarget section */
 
 /* Begin PBXBuildFile section */
+		FEB03AF3187BEF33000FDDCF /* blueMSXGameCore.m in Sources */ = {isa = PBXBuildFile; fileRef = FEB03AF2187BEF33000FDDCF /* blueMSXGameCore.m */; };
+		FEB03AF5187BF6F6000FDDCF /* OpenEmuBase.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = FEB03AF4187BF6F6000FDDCF /* OpenEmuBase.framework */; };
 		FED62A42187BD5D700A88500 /* Cocoa.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = FED62A41187BD5D700A88500 /* Cocoa.framework */; };
 		FED62A4C187BD5D700A88500 /* InfoPlist.strings in Resources */ = {isa = PBXBuildFile; fileRef = FED62A4A187BD5D700A88500 /* InfoPlist.strings */; };
-		FED62A54187BD80600A88500 /* OpenEmuBase.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = FED62A53187BD80600A88500 /* OpenEmuBase.framework */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -38,6 +39,10 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
+		FEB03AF0187BEE8C000FDDCF /* OEMSXSystemResponderClient.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = OEMSXSystemResponderClient.h; path = ../OpenEmu/MSX/OEMSXSystemResponderClient.h; sourceTree = "<group>"; };
+		FEB03AF1187BEF33000FDDCF /* blueMSXGameCore.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = blueMSXGameCore.h; sourceTree = "<group>"; };
+		FEB03AF2187BEF33000FDDCF /* blueMSXGameCore.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = blueMSXGameCore.m; sourceTree = "<group>"; };
+		FEB03AF4187BF6F6000FDDCF /* OpenEmuBase.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = OpenEmuBase.framework; path = "../../../Library/Developer/Xcode/DerivedData/OpenEmu-ebwcwaohrneqtmcmlxkmguipkwal/Build/Products/Debug/OpenEmuBase.framework"; sourceTree = "<group>"; };
 		FED62A3E187BD5D700A88500 /* blueMSX.oecoreplugin */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = blueMSX.oecoreplugin; sourceTree = BUILT_PRODUCTS_DIR; };
 		FED62A41187BD5D700A88500 /* Cocoa.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Cocoa.framework; path = System/Library/Frameworks/Cocoa.framework; sourceTree = SDKROOT; };
 		FED62A44187BD5D700A88500 /* Foundation.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Foundation.framework; path = System/Library/Frameworks/Foundation.framework; sourceTree = SDKROOT; };
@@ -45,7 +50,6 @@
 		FED62A46187BD5D700A88500 /* AppKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = AppKit.framework; path = System/Library/Frameworks/AppKit.framework; sourceTree = SDKROOT; };
 		FED62A49187BD5D700A88500 /* blueMSX-Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = "blueMSX-Info.plist"; sourceTree = "<group>"; };
 		FED62A4B187BD5D700A88500 /* en */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = en; path = en.lproj/InfoPlist.strings; sourceTree = "<group>"; };
-		FED62A53187BD80600A88500 /* OpenEmuBase.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = OpenEmuBase.framework; path = "../../Library/Developer/Xcode/DerivedData/OpenEmu-ebwcwaohrneqtmcmlxkmguipkwal/Build/Products/Debug/OpenEmuBase.framework"; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -53,7 +57,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				FED62A54187BD80600A88500 /* OpenEmuBase.framework in Frameworks */,
+				FEB03AF5187BF6F6000FDDCF /* OpenEmuBase.framework in Frameworks */,
 				FED62A42187BD5D700A88500 /* Cocoa.framework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -61,9 +65,20 @@
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
+		FEB03AEF187BEE44000FDDCF /* Classes */ = {
+			isa = PBXGroup;
+			children = (
+				FEB03AF0187BEE8C000FDDCF /* OEMSXSystemResponderClient.h */,
+				FEB03AF1187BEF33000FDDCF /* blueMSXGameCore.h */,
+				FEB03AF2187BEF33000FDDCF /* blueMSXGameCore.m */,
+			);
+			name = Classes;
+			sourceTree = "<group>";
+		};
 		FED62A35187BD5D700A88500 = {
 			isa = PBXGroup;
 			children = (
+				FEB03AEF187BEE44000FDDCF /* Classes */,
 				FED62A48187BD5D700A88500 /* Resources */,
 				FED62A40187BD5D700A88500 /* Frameworks */,
 				FED62A3F187BD5D700A88500 /* Products */,
@@ -81,7 +96,7 @@
 		FED62A40187BD5D700A88500 /* Frameworks */ = {
 			isa = PBXGroup;
 			children = (
-				FED62A53187BD80600A88500 /* OpenEmuBase.framework */,
+				FEB03AF4187BF6F6000FDDCF /* OpenEmuBase.framework */,
 				FED62A41187BD5D700A88500 /* Cocoa.framework */,
 				FED62A43187BD5D700A88500 /* Other Frameworks */,
 			);
@@ -186,6 +201,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				FEB03AF3187BEF33000FDDCF /* blueMSXGameCore.m in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -287,9 +303,9 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				COMBINE_HIDPI_IMAGES = YES;
-				FRAMEWORK_SEARCH_PATHS = "";
+				FRAMEWORK_SEARCH_PATHS = "$(USER_LIBRARY_DIR)/Developer/Xcode/DerivedData/OpenEmu-ebwcwaohrneqtmcmlxkmguipkwal/Build/Products/Debug";
 				GCC_PRECOMPILE_PREFIX_HEADER = YES;
-				GCC_PREFIX_HEADER = "blueMSX/blueMSX-Prefix.pch";
+				GCC_PREFIX_HEADER = "";
 				INFOPLIST_FILE = "blueMSX-Info.plist";
 				INSTALL_PATH = "\"$(USER_LIBRARY_DIR)/Application Support/OpenEmu/Cores\"";
 				PRODUCT_NAME = "$(TARGET_NAME)";
@@ -302,9 +318,9 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				COMBINE_HIDPI_IMAGES = YES;
-				FRAMEWORK_SEARCH_PATHS = "";
+				FRAMEWORK_SEARCH_PATHS = "$(USER_LIBRARY_DIR)/Developer/Xcode/DerivedData/OpenEmu-ebwcwaohrneqtmcmlxkmguipkwal/Build/Products/Debug";
 				GCC_PRECOMPILE_PREFIX_HEADER = YES;
-				GCC_PREFIX_HEADER = "blueMSX/blueMSX-Prefix.pch";
+				GCC_PREFIX_HEADER = "";
 				INFOPLIST_FILE = "blueMSX-Info.plist";
 				INSTALL_PATH = "\"$(USER_LIBRARY_DIR)/Application Support/OpenEmu/Cores\"";
 				PRODUCT_NAME = "$(TARGET_NAME)";
@@ -352,6 +368,7 @@
 				FED62A52187BD5D700A88500 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
 		};
 		FED62A5A187BE23C00A88500 /* Build configuration list for PBXAggregateTarget "Build & Install blueMSX" */ = {
 			isa = XCConfigurationList;
@@ -360,6 +377,7 @@
 				FED62A5C187BE23C00A88500 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
 	};
