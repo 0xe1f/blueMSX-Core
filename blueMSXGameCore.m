@@ -187,37 +187,28 @@ static blueMSXGameCore *_core;
     videoUpdateAll(video, properties);
     
     mediaDbSetDefaultRomType(properties->cartridge.defaultType);
+
+    for (int i = 0; i < PROP_MAX_CARTS; i++)
+    {
+        if (properties->media.carts[i].fileName[0])
+            insertCartridge(properties, i, properties->media.carts[i].fileName,
+                            properties->media.carts[i].fileNameInZip,
+                            properties->media.carts[i].type, -1);
+    }
+
+    for (int i = 0; i < PROP_MAX_DISKS; i++)
+    {
+        if (properties->media.disks[i].fileName[0])
+            insertDiskette(properties, i, properties->media.disks[i].fileName,
+                           properties->media.disks[i].fileNameInZip, -1);
+    }
     
-//    for (int i = 0; i < PROP_MAX_CARTS; i++)
-//    {
-//        if (properties->media.carts[i].fileName[0])
-//            insertCartridge(properties, i, properties->media.carts[i].fileName,
-//                            properties->media.carts[i].fileNameInZip,
-//                            properties->media.carts[i].type, -1);
-//        
-//        updateExtendedRomName(i, properties->media.carts[i].fileName,
-//                              properties->media.carts[i].fileNameInZip);
-//    }
-//    
-//    for (int i = 0; i < PROP_MAX_DISKS; i++)
-//    {
-//        if (properties->media.disks[i].fileName[0])
-//            insertDiskette(properties, i, properties->media.disks[i].fileName,
-//                           properties->media.disks[i].fileNameInZip, -1);
-//        
-//        updateExtendedDiskName(i, properties->media.disks[i].fileName,
-//                               properties->media.disks[i].fileNameInZip);
-//    }
-//    
-//    for (int i = 0; i < PROP_MAX_TAPES; i++)
-//    {
-//        if (properties->media.tapes[i].fileName[0])
-//            insertCassette(properties, i, properties->media.tapes[i].fileName,
-//                           properties->media.tapes[i].fileNameInZip, 0);
-//        
-//        updateExtendedCasName(i, properties->media.tapes[i].fileName,
-//                              properties->media.tapes[i].fileNameInZip);
-//    }
+    for (int i = 0; i < PROP_MAX_TAPES; i++)
+    {
+        if (properties->media.tapes[i].fileName[0])
+            insertCassette(properties, i, properties->media.tapes[i].fileName,
+                           properties->media.tapes[i].fileNameInZip, 0);
+    }
     
     Machine* machine = machineCreate(properties->emulation.machineName);
     if (machine != NULL)
@@ -240,6 +231,7 @@ static blueMSXGameCore *_core;
     [super startEmulation];
     
     emulatorStart(NULL);
+    insertCartridge(properties, 0, [fileToLoad UTF8String], NULL, ROM_UNKNOWN, 0);
 }
 
 - (void)stopEmulation
@@ -300,10 +292,7 @@ static blueMSXGameCore *_core;
 
 - (BOOL)loadFileAtPath:(NSString *)path
 {
-    // FIXME: rom_unknown
-    emulatorSuspend();
-    insertCartridge(properties, 0, [path UTF8String], NULL, ROM_UNKNOWN, 0);
-    emulatorResume();
+    fileToLoad = path;
     
     return YES;
 }
@@ -333,17 +322,17 @@ static blueMSXGameCore *_core;
     return GL_RGB;
 }
 
-- (double)audioSampleRateForBuffer:(NSUInteger)buffer;
+- (double)audioSampleRateForBuffer:(NSUInteger)buffer
 {
     return 0; //buffer == 0 ? SAMPLERATE : DAC_FREQUENCY;
 }
 
-- (NSUInteger)channelCountForBuffer:(NSUInteger)buffer;
+- (NSUInteger)channelCountForBuffer:(NSUInteger)buffer
 {
     return 0; //buffer == 0 ? 2 : 1;
 }
 
-- (NSUInteger)audioBufferCount;
+- (NSUInteger)audioBufferCount
 {
     return 0; //2;
 }

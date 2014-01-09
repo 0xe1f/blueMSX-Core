@@ -39,6 +39,7 @@ OE_EXPORTED_CLASS
 {
     @private
     int currentScreenIndex;
+    NSString *fileToLoad;
     Properties *properties;
     Video *video;
     Mixer *mixer;
