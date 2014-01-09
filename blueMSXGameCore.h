@@ -27,9 +27,22 @@
 #import <Cocoa/Cocoa.h>
 #import <OpenEmuBase/OEGameCore.h>
 
+#include "Properties.h"
+#include "VideoRender.h"
+#include "AudioMixer.h"
+#include "CMCocoaBuffer.h"
+
 //@class GameDocument;
 
 OE_EXPORTED_CLASS
 @interface blueMSXGameCore : OEGameCore
+{
+    @private
+    int currentScreenIndex;
+    Properties *properties;
+    Video *video;
+    Mixer *mixer;
+    CMCocoaBuffer *screens[2];
+}
 
 @end

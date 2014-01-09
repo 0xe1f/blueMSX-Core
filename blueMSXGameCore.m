@@ -1,5 +1,5 @@
 /*
- Copyright (c) 2014, OpenEmu Team
+ Copyright (c) 2014, Akop Karapetyan
  
  Redistribution and use in source and binary forms, with or without
  modification, are permitted provided that the following conditions are met:
@@ -25,7 +25,483 @@
  */
 
 #import "blueMSXGameCore.h"
+#import "OEMSXSystemResponderClient.h"
+
+#import <OpenGL/gl.h>
+
+#include "ArchInput.h"
+#include "ArchNotifications.h"
+#include "Actions.h"
+#include "JoystickPort.h"
+#include "Machine.h"
+#include "MidiIO.h"
+#include "UartIO.h"
+#include "Casette.h"
+#include "Emulator.h"
+#include "Board.h"
+#include "Language.h"
+#include "LaunchFile.h"
+#include "PrinterIO.h"
+
+#define BUFFER_WIDTH  320
+#define SCREEN_WIDTH  272
+#define SCREEN_DEPTH  32
+#define SCREEN_HEIGHT 240
+
+@interface blueMSXGameCore()
+{
+    NSLock *bufferLock;
+}
+
+- (void)initializeBlueMSX;
+- (void)renderFrame;
+
+@end
+
+static blueMSXGameCore *_core;
 
 @implementation blueMSXGameCore
+
+- (id)init
+{
+    if ((self = [super init]))
+    {
+        currentScreenIndex = 0;
+        bufferLock = [[NSLock alloc] init];
+        _core = self;
+        for (int i = 0; i < 2; i++)
+            screens[i] = [[CMCocoaBuffer alloc] initWithWidth:BUFFER_WIDTH
+                                                       height:SCREEN_HEIGHT
+                                                        depth:SCREEN_DEPTH
+                                                         zoom:1];
+        
+        [self initializeBlueMSX];
+    }
+
+    return self;
+}
+
+- (void)dealloc
+{
+    videoDestroy(video);
+    propDestroy(properties);
+    archSoundDestroy();
+    mixerDestroy(mixer);
+}
+
+- (void)initializeBlueMSX;
+{
+    // FIXME: proper directories
+    propertiesSetDirectory("/Users/akop/Library/Application Support/CocoaMSX", "/Users/akop/Library/Application Support/CocoaMSX");
+    boardSetDirectory("/Users/akop/Library/Application Support/CocoaMSX/SRAM");
+    tapeSetDirectory("/Users/akop/Library/Application Support/CocoaMSX/Cassettes", "");
+    mediaDbLoad("/Users/akop/Library/Application Support/CocoaMSX/Databases");
+    machineSetDirectory("/Users/akop/Library/Application Support/CocoaMSX/Machines");
+    
+    properties = propCreate(0, 0, P_KBD_EUROPEAN, 0, "");
+
+    // FIXME
+    strncpy(properties->emulation.machineName, "MSX2 - C-BIOS", PROP_MAXPATH - 1);
+    
+    // Initialize the emulator
+    
+    properties->emulation.speed = 100;
+    properties->emulation.syncMethod = P_EMU_SYNCTOVBLANKASYNC;
+    properties->emulation.enableFdcTiming = YES;
+    properties->emulation.vdpSyncMode = 0;
+    
+    properties->video.brightness = 100;
+    properties->video.contrast = 100;
+    properties->video.saturation = 100;
+    properties->video.gamma = 100;
+    properties->video.colorSaturationWidth = 0;
+    properties->video.colorSaturationEnable = NO;
+    properties->video.deInterlace = YES;
+    properties->video.monitorType = 0;
+    properties->video.monitorColor = 0;
+    properties->video.scanlinesPct = 100;
+    properties->video.scanlinesEnable = (properties->video.scanlinesPct < 100);
+    
+    properties->sound.mixerChannel[MIXER_CHANNEL_PSG].volume = 100;
+    properties->sound.mixerChannel[MIXER_CHANNEL_PSG].pan = 50;
+    properties->sound.mixerChannel[MIXER_CHANNEL_PSG].enable = YES;
+    properties->sound.mixerChannel[MIXER_CHANNEL_SCC].volume = 100;
+    properties->sound.mixerChannel[MIXER_CHANNEL_SCC].pan = 50;
+    properties->sound.mixerChannel[MIXER_CHANNEL_SCC].enable = YES;
+    properties->sound.mixerChannel[MIXER_CHANNEL_MSXMUSIC].volume = 100;
+    properties->sound.mixerChannel[MIXER_CHANNEL_MSXMUSIC].pan = 50;
+    properties->sound.mixerChannel[MIXER_CHANNEL_MSXMUSIC].enable = YES;
+    properties->sound.mixerChannel[MIXER_CHANNEL_MSXAUDIO].volume = 100;
+    properties->sound.mixerChannel[MIXER_CHANNEL_MSXAUDIO].pan = 50;
+    properties->sound.mixerChannel[MIXER_CHANNEL_MSXAUDIO].enable = YES;
+    properties->sound.mixerChannel[MIXER_CHANNEL_KEYBOARD].volume = 100;
+    properties->sound.mixerChannel[MIXER_CHANNEL_KEYBOARD].pan = 50;
+    properties->sound.mixerChannel[MIXER_CHANNEL_KEYBOARD].enable = YES;
+    properties->sound.mixerChannel[MIXER_CHANNEL_MOONSOUND].volume = 100;
+    properties->sound.mixerChannel[MIXER_CHANNEL_MOONSOUND].pan = 50;
+    properties->sound.mixerChannel[MIXER_CHANNEL_MOONSOUND].enable = YES;
+    
+    properties->joy1.typeId = JOYSTICK_PORT_JOYSTICK;
+    properties->joy2.typeId = JOYSTICK_PORT_JOYSTICK;
+    
+    video = videoCreate();
+    videoSetColors(video, properties->video.saturation, properties->video.brightness,
+                   properties->video.contrast, properties->video.gamma);
+    videoSetScanLines(video, properties->video.scanlinesEnable, properties->video.scanlinesPct);
+    videoSetColorSaturation(video, properties->video.colorSaturationEnable, properties->video.colorSaturationWidth);
+    videoSetColorMode(video, properties->video.monitorColor);
+    
+    mixer = mixerCreate();
+    
+    emulatorInit(properties, mixer);
+    actionInit(video, properties, mixer);
+    tapeSetReadOnly(properties->cassette.readOnly);
+    
+    langSetLanguage(properties->language);
+    langInit();
+    
+    joystickPortSetType(0, properties->joy1.typeId);
+    joystickPortSetType(1, properties->joy2.typeId);
+    
+    printerIoSetType(properties->ports.Lpt.type, properties->ports.Lpt.fileName);
+    printerIoSetType(properties->ports.Lpt.type, properties->ports.Lpt.fileName);
+    uartIoSetType(properties->ports.Com.type, properties->ports.Com.fileName);
+    midiIoSetMidiOutType(properties->sound.MidiOut.type, properties->sound.MidiOut.fileName);
+    midiIoSetMidiInType(properties->sound.MidiIn.type, properties->sound.MidiIn.fileName);
+    ykIoSetMidiInType(properties->sound.YkIn.type, properties->sound.YkIn.fileName);
+    
+    emulatorRestartSound();
+    
+    for (int i = 0; i < MIXER_CHANNEL_TYPE_COUNT; i++)
+    {
+        mixerSetChannelTypeVolume(mixer, i, properties->sound.mixerChannel[i].volume);
+        mixerSetChannelTypePan(mixer, i, properties->sound.mixerChannel[i].pan);
+        mixerEnableChannelType(mixer, i, properties->sound.mixerChannel[i].enable);
+    }
+    
+    mixerSetMasterVolume(mixer, properties->sound.masterVolume);
+    mixerEnableMaster(mixer, properties->sound.masterEnable);
+    
+    videoSetRgbMode(video, 1);
+    
+    videoUpdateAll(video, properties);
+    
+    mediaDbSetDefaultRomType(properties->cartridge.defaultType);
+    
+//    for (int i = 0; i < PROP_MAX_CARTS; i++)
+//    {
+//        if (properties->media.carts[i].fileName[0])
+//            insertCartridge(properties, i, properties->media.carts[i].fileName,
+//                            properties->media.carts[i].fileNameInZip,
+//                            properties->media.carts[i].type, -1);
+//        
+//        updateExtendedRomName(i, properties->media.carts[i].fileName,
+//                              properties->media.carts[i].fileNameInZip);
+//    }
+//    
+//    for (int i = 0; i < PROP_MAX_DISKS; i++)
+//    {
+//        if (properties->media.disks[i].fileName[0])
+//            insertDiskette(properties, i, properties->media.disks[i].fileName,
+//                           properties->media.disks[i].fileNameInZip, -1);
+//        
+//        updateExtendedDiskName(i, properties->media.disks[i].fileName,
+//                               properties->media.disks[i].fileNameInZip);
+//    }
+//    
+//    for (int i = 0; i < PROP_MAX_TAPES; i++)
+//    {
+//        if (properties->media.tapes[i].fileName[0])
+//            insertCassette(properties, i, properties->media.tapes[i].fileName,
+//                           properties->media.tapes[i].fileNameInZip, 0);
+//        
+//        updateExtendedCasName(i, properties->media.tapes[i].fileName,
+//                              properties->media.tapes[i].fileNameInZip);
+//    }
+    
+    Machine* machine = machineCreate(properties->emulation.machineName);
+    if (machine != NULL)
+    {
+        boardSetMachine(machine);
+        machineDestroy(machine);
+    }
+    
+    boardSetFdcTimingEnable(properties->emulation.enableFdcTiming);
+    boardSetY8950Enable(properties->sound.chip.enableY8950);
+    boardSetYm2413Enable(properties->sound.chip.enableYM2413);
+    boardSetMoonsoundEnable(properties->sound.chip.enableMoonsound);
+    boardSetVideoAutodetect(properties->video.detectActiveMonitor);
+    
+    boardEnableSnapshots(0);
+}
+
+- (void)startEmulation
+{
+    [super startEmulation];
+    
+    emulatorStart(NULL);
+}
+
+- (void)stopEmulation
+{
+    emulatorSuspend();
+    emulatorStop();
+    
+    [super stopEmulation];
+}
+
+- (void)resetEmulation
+{
+    actionEmuResetHard();
+}
+
+- (void)executeFrame
+{
+    //
+}
+
+- (void)renderFrame
+{
+    [bufferLock lock];
+    
+    FrameBuffer* frameBuffer = frameBufferFlipViewFrame(properties->emulation.syncMethod == P_EMU_SYNCTOVBLANKASYNC);
+    CMCocoaBuffer *currentScreen = screens[currentScreenIndex];
+    
+    char* dpyData = currentScreen->pixels;
+    int width = currentScreen->actualWidth;
+    int height = currentScreen->actualHeight;
+    
+    if (frameBuffer == NULL)
+        frameBuffer = frameBufferGetWhiteNoiseFrame();
+    
+    int borderWidth = (BUFFER_WIDTH - frameBuffer->maxWidth) * currentScreen->zoom / 2;
+    
+    videoRender(video, frameBuffer, currentScreen->depth, currentScreen->zoom,
+                dpyData + borderWidth * currentScreen->bytesPerPixel, 0,
+                currentScreen->pitch, -1);
+    
+    if (borderWidth > 0)
+    {
+        int h = height;
+        while (h--)
+        {
+            memset(dpyData, 0, borderWidth * currentScreen->bytesPerPixel);
+            memset(dpyData + (width - borderWidth) * currentScreen->bytesPerPixel,
+                   0, borderWidth * currentScreen->bytesPerPixel);
+            
+            dpyData += currentScreen->pitch;
+        }
+    }
+    
+    currentScreenIndex ^= 1;
+    
+    [bufferLock unlock];
+}
+
+- (BOOL)loadFileAtPath:(NSString *)path
+{
+    // FIXME: rom_unknown
+    emulatorSuspend();
+    insertCartridge(properties, 0, [path UTF8String], NULL, ROM_UNKNOWN, 0);
+    emulatorResume();
+    
+    return YES;
+}
+
+- (OEIntSize)bufferSize
+{
+    return OEIntSizeMake(screens[0]->actualWidth, screens[0]->actualHeight);
+}
+
+- (const void*)videoBuffer
+{
+    return screens[currentScreenIndex]->pixels;
+}
+
+- (GLenum)pixelFormat
+{
+    return GL_RGBA;
+}
+
+- (GLenum)pixelType
+{
+    return GL_UNSIGNED_BYTE;
+}
+
+- (GLenum)internalPixelFormat
+{
+    return GL_RGB;
+}
+
+- (double)audioSampleRateForBuffer:(NSUInteger)buffer;
+{
+    return 0; //buffer == 0 ? SAMPLERATE : DAC_FREQUENCY;
+}
+
+- (NSUInteger)channelCountForBuffer:(NSUInteger)buffer;
+{
+    return 0; //buffer == 0 ? 2 : 1;
+}
+
+- (NSUInteger)audioBufferCount;
+{
+    return 0; //2;
+}
+
+- (BOOL)saveStateToFileAtPath:(NSString *)fileName
+{
+    emulatorSuspend();
+    boardSaveState([fileName UTF8String], 1);
+    emulatorResume();
+
+    return YES;
+}
+
+- (BOOL)loadStateFromFileAtPath:(NSString *)fileName
+{
+    emulatorSuspend();
+    emulatorStop();
+    emulatorStart([fileName UTF8String]);
+
+    return YES;
+}
+
+#pragma mark - blueMSX callbacks
+
+#pragma mark - Emulation callbacks
+
+void archEmulationStartNotification()
+{
+}
+
+void archEmulationStopNotification()
+{
+}
+
+void archEmulationStartFailure()
+{
+}
+
+#pragma mark - Debugging callbacks
+
+void archTrap(UInt8 value)
+{
+}
+
+#pragma mark - Input Callbacks
+
+void archPollInput()
+{
+    // FIXME
+//    @autoreleasepool
+//    {
+//        [[theEmulator input] updateKeyboardState];
+//    }
+}
+
+UInt8 archJoystickGetState(int joystickNo)
+{
+    return 0; // Coleco-specific; unused
+}
+
+void archKeyboardSetSelectedKey(int keyCode)
+{
+}
+
+#pragma mark - Mouse Callbacks
+
+void archMouseGetState(int *dx, int *dy)
+{
+    // FIXME
+//    @autoreleasepool
+//    {
+//        NSPoint coordinates = theEmulator.mouse.pointerCoordinates;
+//        *dx = (int)coordinates.x;
+//        *dy = (int)coordinates.y;
+//    }
+}
+
+int archMouseGetButtonState(int checkAlways)
+{
+    // FIXME
+//    @autoreleasepool
+//    {
+//        return theEmulator.mouse.buttonState;
+//    }
+    return 0;
+}
+
+void archMouseEmuEnable(AmEnableMode mode)
+{
+    // FIXME
+//    @autoreleasepool
+//    {
+//        theEmulator.mouse.mouseMode = mode;
+//    }
+}
+
+void archMouseSetForceLock(int lock)
+{
+}
+
+#pragma mark - Sound callbacks
+
+void archSoundCreate(Mixer* mixer, UInt32 sampleRate, UInt32 bufferSize, Int16 channels)
+{
+    // FIXME
+//    @autoreleasepool
+//    {
+//        [theEmulator.sound initializeWithSampleRate:sampleRate
+//                                           channels:channels
+//                                         bufferSize:bufferSize
+//                                              mixer:mixer
+//                                     bitsPerChannel:16];
+//    }
+}
+
+void archSoundDestroy()
+{
+    // FIXME
+//    @autoreleasepool
+//    {
+//        [theEmulator.sound destroy];
+//    }
+}
+
+void archSoundResume()
+{
+    // FIXME
+//    @autoreleasepool
+//    {
+//        [theEmulator.sound resume];
+//    }
+}
+
+void archSoundSuspend()
+{
+    // FIXME
+//    @autoreleasepool
+//    {
+//        [theEmulator.sound pause];
+//    }
+}
+
+#pragma mark - Video callbacks
+
+int archUpdateEmuDisplay(int syncMode)
+{
+    [_core renderFrame];
+    
+    return 1;
+}
+
+void archUpdateWindow()
+{
+}
+
+void *archScreenCapture(ScreenCaptureType type, int *bitmapSize, int onlyBmp)
+{
+    return NULL;
+}
 
 @end
