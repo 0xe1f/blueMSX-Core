@@ -7,6 +7,7 @@ What works
 ----------
 
 * Video
+* Sound
 * Basic cartridge emulation
 
 What sort of works
@@ -18,7 +19,10 @@ What sort of works
 What doesn't work
 -----------------
 
-* Sound
+* Disks
+* Cassette tapes
+* Non-C-BIOS systems
+* Lots of other stuff
 
   [1]: http://bluemsx.com
   [2]: https://github.com/OpenEmu/OpenEmu

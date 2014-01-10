@@ -22,6 +22,7 @@
 /* End PBXAggregateTarget section */
 
 /* Begin PBXBuildFile section */
+		FE1D7B731880671D00472D7D /* README.md in Resources */ = {isa = PBXBuildFile; fileRef = FE1D7B721880671D00472D7D /* README.md */; };
 		FE6DE951187C6FF800EFA21E /* Patch.c in Sources */ = {isa = PBXBuildFile; fileRef = FE6DE715187C6FF600EFA21E /* Patch.c */; };
 		FE6DE952187C6FF800EFA21E /* Adam.c in Sources */ = {isa = PBXBuildFile; fileRef = FE6DE717187C6FF600EFA21E /* Adam.c */; };
 		FE6DE953187C6FF800EFA21E /* Board.c in Sources */ = {isa = PBXBuildFile; fileRef = FE6DE719187C6FF600EFA21E /* Board.c */; };
@@ -313,6 +314,7 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
+		FE1D7B721880671D00472D7D /* README.md */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = README.md; sourceTree = "<group>"; };
 		FE6DE700187C6FF600EFA21E /* ArchBitmap.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = ArchBitmap.h; sourceTree = "<group>"; };
 		FE6DE701187C6FF600EFA21E /* ArchCdrom.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = ArchCdrom.h; sourceTree = "<group>"; };
 		FE6DE702187C6FF600EFA21E /* ArchControls.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = ArchControls.h; sourceTree = "<group>"; };
@@ -909,6 +911,14 @@
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
+		FE1D7B71188066EE00472D7D /* Documentation */ = {
+			isa = PBXGroup;
+			children = (
+				FE1D7B721880671D00472D7D /* README.md */,
+			);
+			name = Documentation;
+			sourceTree = "<group>";
+		};
 		FE6DE6FE187C6FF600EFA21E /* Core */ = {
 			isa = PBXGroup;
 			children = (
@@ -1659,6 +1669,7 @@
 			children = (
 				FE6DE6FE187C6FF600EFA21E /* Core */,
 				FEB03AEF187BEE44000FDDCF /* Classes */,
+				FE1D7B71188066EE00472D7D /* Documentation */,
 				FED62A48187BD5D700A88500 /* Resources */,
 				FED62A40187BD5D700A88500 /* Frameworks */,
 				FED62A3F187BD5D700A88500 /* Products */,
@@ -1758,6 +1769,7 @@
 			files = (
 				FED62A4C187BD5D700A88500 /* InfoPlist.strings in Resources */,
 				FEA841AA187F307200F5CD6D /* Databases in Resources */,
+				FE1D7B731880671D00472D7D /* README.md in Resources */,
 				FEA841A8187F288F00F5CD6D /* Machines in Resources */,
 				FE6DE959187C6FF800EFA21E /* build_info.txt in Resources */,
 			);

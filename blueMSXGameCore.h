@@ -47,6 +47,7 @@ OE_EXPORTED_CLASS
     Video *video;
     Mixer *mixer;
     CMCocoaBuffer *screens[2];
+    NSLock *bufferLock;
 }
 
 @end

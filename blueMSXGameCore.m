@@ -26,6 +26,7 @@
 
 #import "blueMSXGameCore.h"
 #import "OEMSXSystemResponderClient.h"
+#import "OpenEmuBase/OERingBuffer.h"
 
 #import <OpenGL/gl.h>
 
@@ -44,10 +45,14 @@
 #include "PrinterIO.h"
 #include "InputEvent.h"
 
-#define BUFFER_WIDTH  320
-#define SCREEN_WIDTH  272
-#define SCREEN_DEPTH  32
-#define SCREEN_HEIGHT 240
+#define SCREEN_BUFFER_WIDTH 320
+#define SCREEN_WIDTH        272
+#define SCREEN_DEPTH         32
+#define SCREEN_HEIGHT       240
+
+#define SOUND_SAMPLE_RATE     44100
+#define SOUND_FRAME_SIZE      8192
+#define SOUND_BYTES_PER_FRAME 2
 
 #define virtualCodeSet(eventCode) self->virtualCodeMap[eventCode] = 1
 #define virtualCodeUnset(eventCode) self->virtualCodeMap[eventCode] = 0
@@ -55,7 +60,6 @@
 
 @interface blueMSXGameCore()
 {
-    NSLock *bufferLock;
 }
 
 - (void)initializeBlueMSX;
@@ -64,6 +68,7 @@
 @end
 
 static blueMSXGameCore *_core;
+static Int32 mixAudio(void *param, Int16 *buffer, UInt32 count);
 
 @implementation blueMSXGameCore
 
@@ -75,7 +80,7 @@ static blueMSXGameCore *_core;
         bufferLock = [[NSLock alloc] init];
         _core = self;
         for (int i = 0; i < 2; i++)
-            screens[i] = [[CMCocoaBuffer alloc] initWithWidth:BUFFER_WIDTH
+            screens[i] = [[CMCocoaBuffer alloc] initWithWidth:SCREEN_BUFFER_WIDTH
                                                        height:SCREEN_HEIGHT
                                                         depth:SCREEN_DEPTH
                                                          zoom:1];
@@ -90,11 +95,11 @@ static blueMSXGameCore *_core;
 {
     videoDestroy(video);
     propDestroy(properties);
-    archSoundDestroy();
+    mixerSetWriteCallback(mixer, NULL, NULL, 0);
     mixerDestroy(mixer);
 }
 
-- (void)initializeBlueMSX;
+- (void)initializeBlueMSX
 {
     properties = propCreate(0, 0, P_KBD_EUROPEAN, 0, "");
     
@@ -181,6 +186,10 @@ static blueMSXGameCore *_core;
     
     mixerSetMasterVolume(mixer, properties->sound.masterVolume);
     mixerEnableMaster(mixer, properties->sound.masterEnable);
+    mixerSetStereo(mixer, YES);
+    mixerSetWriteCallback(mixer, mixAudio,
+                          (__bridge void *)[self ringBufferAtIndex:0],
+                          SOUND_FRAME_SIZE);
     
     // Init media DB
     mediaDbLoad([[resourcePath stringByAppendingPathComponent:@"Databases"] UTF8String]);
@@ -335,7 +344,7 @@ static blueMSXGameCore *_core;
 
 - (void)executeFrame
 {
-    //
+    // Update controls
     memcpy(eventMap, _core->virtualCodeMap, sizeof(_core->virtualCodeMap));
 }
 
@@ -353,7 +362,7 @@ static blueMSXGameCore *_core;
     if (frameBuffer == NULL)
         frameBuffer = frameBufferGetWhiteNoiseFrame();
     
-    int borderWidth = (BUFFER_WIDTH - frameBuffer->maxWidth) * currentScreen->zoom / 2;
+    int borderWidth = (SCREEN_BUFFER_WIDTH - frameBuffer->maxWidth) * currentScreen->zoom / 2;
     
     videoRender(video, frameBuffer, currentScreen->depth, currentScreen->zoom,
                 dpyData + borderWidth * currentScreen->bytesPerPixel, 0,
@@ -401,7 +410,7 @@ static blueMSXGameCore *_core;
 
 - (OEIntRect)screenRect
 {
-    return OEIntRectMake((BUFFER_WIDTH - SCREEN_WIDTH) / 2, 0,
+    return OEIntRectMake((SCREEN_BUFFER_WIDTH - SCREEN_WIDTH) / 2, 0,
                          SCREEN_WIDTH, screens[0]->actualHeight);
 }
 
@@ -410,7 +419,7 @@ static blueMSXGameCore *_core;
     return (OEIntSize){ 17, 15 };
 }
 
-- (const void*)videoBuffer
+- (const void *)videoBuffer
 {
     return screens[currentScreenIndex]->pixels;
 }
@@ -432,17 +441,17 @@ static blueMSXGameCore *_core;
 
 - (double)audioSampleRateForBuffer:(NSUInteger)buffer
 {
-    return 0; //buffer == 0 ? SAMPLERATE : DAC_FREQUENCY;
+    return SOUND_SAMPLE_RATE;
 }
 
 - (NSUInteger)channelCountForBuffer:(NSUInteger)buffer
 {
-    return 0; //buffer == 0 ? 2 : 1;
+    return 2;
 }
 
 - (NSUInteger)audioBufferCount
 {
-    return 0; //2;
+    return 1;
 }
 
 - (BOOL)saveStateToFileAtPath:(NSString *)fileName
@@ -461,6 +470,16 @@ static blueMSXGameCore *_core;
     emulatorStart([fileName UTF8String]);
 
     return YES;
+}
+
+#pragma mark - Audio
+
+static Int32 mixAudio(void *param, Int16 *buffer, UInt32 count)
+{
+    OERingBuffer *soundBuffer = (__bridge OERingBuffer *)param;
+    [soundBuffer write:(uint8_t *)buffer maxLength:count * SOUND_BYTES_PER_FRAME];
+    
+    return 0;
 }
 
 #pragma mark - blueMSX callbacks
@@ -489,7 +508,6 @@ void archTrap(UInt8 value)
 
 void archPollInput()
 {
-//    memcpy(eventMap, _core->virtualCodeMap, sizeof(_core->virtualCodeMap));
 }
 
 UInt8 archJoystickGetState(int joystickNo)
@@ -541,42 +559,18 @@ void archMouseSetForceLock(int lock)
 
 void archSoundCreate(Mixer* mixer, UInt32 sampleRate, UInt32 bufferSize, Int16 channels)
 {
-    // FIXME
-//    @autoreleasepool
-//    {
-//        [theEmulator.sound initializeWithSampleRate:sampleRate
-//                                           channels:channels
-//                                         bufferSize:bufferSize
-//                                              mixer:mixer
-//                                     bitsPerChannel:16];
-//    }
 }
 
 void archSoundDestroy()
 {
-    // FIXME
-//    @autoreleasepool
-//    {
-//        [theEmulator.sound destroy];
-//    }
 }
 
 void archSoundResume()
 {
-    // FIXME
-//    @autoreleasepool
-//    {
-//        [theEmulator.sound resume];
-//    }
 }
 
 void archSoundSuspend()
 {
-    // FIXME
-//    @autoreleasepool
-//    {
-//        [theEmulator.sound pause];
-//    }
 }
 
 #pragma mark - Video callbacks
