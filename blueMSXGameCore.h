@@ -25,7 +25,8 @@
  */
 
 #import <Cocoa/Cocoa.h>
-#import <OpenEmuBase/OEGameCore.h>
+#import "OpenEmuBase/OEGameCore.h"
+#import "OEMSXSystemResponderClient.h"
 
 #include "Properties.h"
 #include "VideoRender.h"
@@ -35,11 +36,13 @@
 //@class GameDocument;
 
 OE_EXPORTED_CLASS
-@interface blueMSXGameCore : OEGameCore
+@interface blueMSXGameCore : OEGameCore<OEMSXSystemResponderClient>
 {
     @private
+    int virtualCodeMap[256];
     int currentScreenIndex;
     NSString *fileToLoad;
+    RomType romTypeToLoad;
     Properties *properties;
     Video *video;
     Mixer *mixer;

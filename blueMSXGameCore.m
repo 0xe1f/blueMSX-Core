@@ -1,5 +1,5 @@
 /*
- Copyright (c) 2014, Akop Karapetyan
+ Copyright (c) 2014, OpenEmu Team
  
  Redistribution and use in source and binary forms, with or without
  modification, are permitted provided that the following conditions are met:
@@ -42,11 +42,16 @@
 #include "Language.h"
 #include "LaunchFile.h"
 #include "PrinterIO.h"
+#include "InputEvent.h"
 
 #define BUFFER_WIDTH  320
 #define SCREEN_WIDTH  272
 #define SCREEN_DEPTH  32
 #define SCREEN_HEIGHT 240
+
+#define virtualCodeSet(eventCode) self->virtualCodeMap[eventCode] = 1
+#define virtualCodeUnset(eventCode) self->virtualCodeMap[eventCode] = 0
+#define virtualCodeClear() memset(self->virtualCodeMap, 0, sizeof(self->virtualCodeMap));
 
 @interface blueMSXGameCore()
 {
@@ -91,21 +96,15 @@ static blueMSXGameCore *_core;
 
 - (void)initializeBlueMSX;
 {
-    // FIXME: proper directories
-    propertiesSetDirectory("/Users/akop/Library/Application Support/CocoaMSX", "/Users/akop/Library/Application Support/CocoaMSX");
-    boardSetDirectory("/Users/akop/Library/Application Support/CocoaMSX/SRAM");
-    tapeSetDirectory("/Users/akop/Library/Application Support/CocoaMSX/Cassettes", "");
-    mediaDbLoad("/Users/akop/Library/Application Support/CocoaMSX/Databases");
-    machineSetDirectory("/Users/akop/Library/Application Support/CocoaMSX/Machines");
-    
     properties = propCreate(0, 0, P_KBD_EUROPEAN, 0, "");
-
-    // FIXME
+    
+    NSString *resourcePath = [[NSBundle bundleWithIdentifier:@"org.openemu.blueMSX"] resourcePath];
+    
+    // Set machine name
     strncpy(properties->emulation.machineName, "MSX2 - C-BIOS", PROP_MAXPATH - 1);
     
-    // Initialize the emulator
-    
-    properties->emulation.speed = 100;
+    // Set up properties
+    properties->emulation.speed = 50;
     properties->emulation.syncMethod = P_EMU_SYNCTOVBLANKASYNC;
     properties->emulation.enableFdcTiming = YES;
     properties->emulation.vdpSyncMode = 0;
@@ -144,25 +143,25 @@ static blueMSXGameCore *_core;
     properties->joy1.typeId = JOYSTICK_PORT_JOYSTICK;
     properties->joy2.typeId = JOYSTICK_PORT_JOYSTICK;
     
+    // Init video
     video = videoCreate();
     videoSetColors(video, properties->video.saturation, properties->video.brightness,
                    properties->video.contrast, properties->video.gamma);
     videoSetScanLines(video, properties->video.scanlinesEnable, properties->video.scanlinesPct);
     videoSetColorSaturation(video, properties->video.colorSaturationEnable, properties->video.colorSaturationWidth);
     videoSetColorMode(video, properties->video.monitorColor);
+    videoSetRgbMode(video, 1);
+    videoUpdateAll(video, properties);
     
-    mixer = mixerCreate();
-    
-    emulatorInit(properties, mixer);
-    actionInit(video, properties, mixer);
-    tapeSetReadOnly(properties->cassette.readOnly);
-    
+    // Init translations (unused for the most part)
     langSetLanguage(properties->language);
     langInit();
     
+    // Init input
     joystickPortSetType(0, properties->joy1.typeId);
     joystickPortSetType(1, properties->joy2.typeId);
     
+    // Init misc. devices
     printerIoSetType(properties->ports.Lpt.type, properties->ports.Lpt.fileName);
     printerIoSetType(properties->ports.Lpt.type, properties->ports.Lpt.fileName);
     uartIoSetType(properties->ports.Com.type, properties->ports.Com.fileName);
@@ -170,7 +169,8 @@ static blueMSXGameCore *_core;
     midiIoSetMidiInType(properties->sound.MidiIn.type, properties->sound.MidiIn.fileName);
     ykIoSetMidiInType(properties->sound.YkIn.type, properties->sound.YkIn.fileName);
     
-    emulatorRestartSound();
+    // Init mixer
+    mixer = mixerCreate();
     
     for (int i = 0; i < MIXER_CHANNEL_TYPE_COUNT; i++)
     {
@@ -182,12 +182,19 @@ static blueMSXGameCore *_core;
     mixerSetMasterVolume(mixer, properties->sound.masterVolume);
     mixerEnableMaster(mixer, properties->sound.masterEnable);
     
-    videoSetRgbMode(video, 1);
-    
-    videoUpdateAll(video, properties);
-    
+    // Init media DB
+    mediaDbLoad([[resourcePath stringByAppendingPathComponent:@"Databases"] UTF8String]);
     mediaDbSetDefaultRomType(properties->cartridge.defaultType);
-
+    
+    // Init board
+    boardSetFdcTimingEnable(properties->emulation.enableFdcTiming);
+    boardSetY8950Enable(properties->sound.chip.enableY8950);
+    boardSetYm2413Enable(properties->sound.chip.enableYM2413);
+    boardSetMoonsoundEnable(properties->sound.chip.enableMoonsound);
+    boardSetVideoAutodetect(properties->video.detectActiveMonitor);
+    boardEnableSnapshots(0);
+    
+    // Init storage
     for (int i = 0; i < PROP_MAX_CARTS; i++)
     {
         if (properties->media.carts[i].fileName[0])
@@ -195,7 +202,7 @@ static blueMSXGameCore *_core;
                             properties->media.carts[i].fileNameInZip,
                             properties->media.carts[i].type, -1);
     }
-
+    
     for (int i = 0; i < PROP_MAX_DISKS; i++)
     {
         if (properties->media.disks[i].fileName[0])
@@ -210,28 +217,31 @@ static blueMSXGameCore *_core;
                            properties->media.tapes[i].fileNameInZip, 0);
     }
     
-    Machine* machine = machineCreate(properties->emulation.machineName);
-    if (machine != NULL)
-    {
-        boardSetMachine(machine);
-        machineDestroy(machine);
-    }
+    tapeSetReadOnly(properties->cassette.readOnly);
     
-    boardSetFdcTimingEnable(properties->emulation.enableFdcTiming);
-    boardSetY8950Enable(properties->sound.chip.enableY8950);
-    boardSetYm2413Enable(properties->sound.chip.enableYM2413);
-    boardSetMoonsoundEnable(properties->sound.chip.enableMoonsound);
-    boardSetVideoAutodetect(properties->video.detectActiveMonitor);
-    
-    boardEnableSnapshots(0);
+    // Misc. initialization
+    machineSetDirectory([[resourcePath stringByAppendingPathComponent:@"Machines"] UTF8String]);
+    emulatorInit(properties, mixer);
+    actionInit(video, properties, mixer);
+    emulatorRestartSound();
 }
 
 - (void)startEmulation
 {
     [super startEmulation];
     
+    // propertiesSetDirectory("", "");
+    // tapeSetDirectory("/Cassettes", "");
+    
+    [[NSFileManager defaultManager] createDirectoryAtPath:[self batterySavesDirectoryPath]
+                              withIntermediateDirectories:YES
+                                               attributes:nil
+                                                    error:NULL];
+    
+    boardSetDirectory([[self batterySavesDirectoryPath] UTF8String]);
+    
     emulatorStart(NULL);
-    insertCartridge(properties, 0, [fileToLoad UTF8String], NULL, ROM_UNKNOWN, 0);
+    insertCartridge(properties, 0, [fileToLoad UTF8String], NULL, romTypeToLoad, 0);
 }
 
 - (void)stopEmulation
@@ -242,14 +252,91 @@ static blueMSXGameCore *_core;
     [super stopEmulation];
 }
 
+- (void)setPauseEmulation:(BOOL)pauseEmulation
+{
+    if (pauseEmulation)
+        emulatorSetState(EMU_PAUSED);
+    else
+        emulatorSetState(EMU_RUNNING);
+    
+    [super setPauseEmulation:pauseEmulation];
+}
+
 - (void)resetEmulation
 {
-    actionEmuResetHard();
+    actionEmuResetSoft();
+}
+
+- (oneway void)didPushMSXJoystickButton:(OEMSXJoystickButton)button
+                             controller:(NSInteger)index
+{
+    int code = -1;
+    
+    switch (button)
+    {
+    case OEMSXJoystickUp:
+        code = (index == 1) ? EC_JOY1_UP : EC_JOY2_UP;
+        break;
+    case OEMSXJoystickDown:
+        code = (index == 1) ? EC_JOY1_DOWN : EC_JOY2_DOWN;
+        break;
+    case OEMSXJoystickLeft:
+        code = (index == 1) ? EC_JOY1_LEFT : EC_JOY2_LEFT;
+        break;
+    case OEMSXJoystickRight:
+        code = (index == 1) ? EC_JOY1_RIGHT : EC_JOY2_RIGHT;
+        break;
+    case OEMSXButtonA:
+        code = (index == 1) ? EC_JOY1_BUTTON1 : EC_JOY2_BUTTON1;
+        break;
+    case OEMSXButtonB:
+        code = (index == 1) ? EC_JOY1_BUTTON2 : EC_JOY2_BUTTON2;
+        break;
+    default:
+        break;
+    }
+    
+    if (code != -1)
+        virtualCodeSet(code);
+}
+
+- (oneway void)didReleaseMSXJoystickButton:(OEMSXJoystickButton)button
+                                controller:(NSInteger)index
+{
+    int code = -1;
+    
+    switch (button)
+    {
+    case OEMSXJoystickUp:
+        code = (index == 1) ? EC_JOY1_UP : EC_JOY2_UP;
+        break;
+    case OEMSXJoystickDown:
+        code = (index == 1) ? EC_JOY1_DOWN : EC_JOY2_DOWN;
+        break;
+    case OEMSXJoystickLeft:
+        code = (index == 1) ? EC_JOY1_LEFT : EC_JOY2_LEFT;
+        break;
+    case OEMSXJoystickRight:
+        code = (index == 1) ? EC_JOY1_RIGHT : EC_JOY2_RIGHT;
+        break;
+    case OEMSXButtonA:
+        code = (index == 1) ? EC_JOY1_BUTTON1 : EC_JOY2_BUTTON1;
+        break;
+    case OEMSXButtonB:
+        code = (index == 1) ? EC_JOY1_BUTTON2 : EC_JOY2_BUTTON2;
+        break;
+    default:
+        break;
+    }
+    
+    if (code != -1)
+        virtualCodeUnset(code);
 }
 
 - (void)executeFrame
 {
     //
+    memcpy(eventMap, _core->virtualCodeMap, sizeof(_core->virtualCodeMap));
 }
 
 - (void)renderFrame
@@ -292,6 +379,16 @@ static blueMSXGameCore *_core;
 
 - (BOOL)loadFileAtPath:(NSString *)path
 {
+    const char *cpath = [path UTF8String];
+    MediaType *mediaType = mediaDbLookupRomByPath(cpath);
+    if (!mediaType)
+        mediaType = mediaDbGuessRomByPath(cpath);
+    
+    if (mediaType)
+        romTypeToLoad = mediaDbGetRomType(mediaType);
+    else
+        romTypeToLoad = ROM_UNKNOWN;
+    
     fileToLoad = path;
     
     return YES;
@@ -300,6 +397,17 @@ static blueMSXGameCore *_core;
 - (OEIntSize)bufferSize
 {
     return OEIntSizeMake(screens[0]->actualWidth, screens[0]->actualHeight);
+}
+
+- (OEIntRect)screenRect
+{
+    return OEIntRectMake((BUFFER_WIDTH - SCREEN_WIDTH) / 2, 0,
+                         SCREEN_WIDTH, screens[0]->actualHeight);
+}
+
+- (OEIntSize)aspectSize
+{
+    return (OEIntSize){ 17, 15 };
 }
 
 - (const void*)videoBuffer
@@ -381,11 +489,7 @@ void archTrap(UInt8 value)
 
 void archPollInput()
 {
-    // FIXME
-//    @autoreleasepool
-//    {
-//        [[theEmulator input] updateKeyboardState];
-//    }
+//    memcpy(eventMap, _core->virtualCodeMap, sizeof(_core->virtualCodeMap));
 }
 
 UInt8 archJoystickGetState(int joystickNo)

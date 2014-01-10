@@ -36,5 +36,9 @@
 	<array>
 		<string>openemu.system.msx</string>
 	</array>
+	<key>SUEnableAutomaticChecks</key>
+	<true/>
+	<key>SUFeedURL</key>
+	<string>https://raw.github.com/OpenEmu/OpenEmu-Update/master/blueMSX_appcast.xml</string>
 </dict>
 </plist>
