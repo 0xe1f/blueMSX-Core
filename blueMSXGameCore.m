@@ -250,7 +250,9 @@ static Int32 mixAudio(void *param, Int16 *buffer, UInt32 count);
     boardSetDirectory([[self batterySavesDirectoryPath] UTF8String]);
     
     emulatorStart(NULL);
-    insertCartridge(properties, 0, [fileToLoad UTF8String], NULL, romTypeToLoad, 0);
+    
+    if (fileToLoad)
+        insertCartridge(properties, 0, [fileToLoad UTF8String], NULL, romTypeToLoad, 0);
 }
 
 - (void)stopEmulation
@@ -342,6 +344,16 @@ static Int32 mixAudio(void *param, Int16 *buffer, UInt32 count);
         virtualCodeUnset(code);
 }
 
+- (oneway void)didPressKey:(OEMSXKey)key
+{
+    virtualCodeSet(key);
+}
+
+- (oneway void)didReleaseKey:(OEMSXKey)key
+{
+    virtualCodeUnset(key);
+}
+
 - (void)executeFrame
 {
     // Update controls
@@ -386,8 +398,13 @@ static Int32 mixAudio(void *param, Int16 *buffer, UInt32 count);
     [bufferLock unlock];
 }
 
+#pragma mark - OE I/O
+
 - (BOOL)loadFileAtPath:(NSString *)path
 {
+    fileToLoad = nil;
+    romTypeToLoad = ROM_UNKNOWN;
+    
     const char *cpath = [path UTF8String];
     MediaType *mediaType = mediaDbLookupRomByPath(cpath);
     if (!mediaType)
@@ -395,13 +412,31 @@ static Int32 mixAudio(void *param, Int16 *buffer, UInt32 count);
     
     if (mediaType)
         romTypeToLoad = mediaDbGetRomType(mediaType);
-    else
-        romTypeToLoad = ROM_UNKNOWN;
     
     fileToLoad = path;
     
     return YES;
 }
+
+- (BOOL)saveStateToFileAtPath:(NSString *)fileName
+{
+    emulatorSuspend();
+    boardSaveState([fileName UTF8String], 1);
+    emulatorResume();
+    
+    return YES;
+}
+
+- (BOOL)loadStateFromFileAtPath:(NSString *)fileName
+{
+    emulatorSuspend();
+    emulatorStop();
+    emulatorStart([fileName UTF8String]);
+    
+    return YES;
+}
+
+#pragma mark - OE Video
 
 - (OEIntSize)bufferSize
 {
@@ -439,6 +474,8 @@ static Int32 mixAudio(void *param, Int16 *buffer, UInt32 count);
     return GL_RGB;
 }
 
+#pragma mark - OE Audio
+
 - (double)audioSampleRateForBuffer:(NSUInteger)buffer
 {
     return SOUND_SAMPLE_RATE;
@@ -452,24 +489,6 @@ static Int32 mixAudio(void *param, Int16 *buffer, UInt32 count);
 - (NSUInteger)audioBufferCount
 {
     return 1;
-}
-
-- (BOOL)saveStateToFileAtPath:(NSString *)fileName
-{
-    emulatorSuspend();
-    boardSaveState([fileName UTF8String], 1);
-    emulatorResume();
-
-    return YES;
-}
-
-- (BOOL)loadStateFromFileAtPath:(NSString *)fileName
-{
-    emulatorSuspend();
-    emulatorStop();
-    emulatorStart([fileName UTF8String]);
-
-    return YES;
 }
 
 #pragma mark - Audio
