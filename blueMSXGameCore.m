@@ -62,7 +62,7 @@
 {
 }
 
-- (void)initializeBlueMSX;
+- (void)initializeEmulator;
 - (void)renderFrame;
 
 @end
@@ -85,7 +85,7 @@ static Int32 mixAudio(void *param, Int16 *buffer, UInt32 count);
                                                         depth:SCREEN_DEPTH
                                                          zoom:1];
         
-        [self initializeBlueMSX];
+        [self initializeEmulator];
     }
 
     return self;
@@ -99,7 +99,7 @@ static Int32 mixAudio(void *param, Int16 *buffer, UInt32 count);
     mixerDestroy(mixer);
 }
 
-- (void)initializeBlueMSX
+- (void)initializeEmulator
 {
     properties = propCreate(0, 0, P_KBD_EUROPEAN, 0, "");
     
@@ -276,6 +276,14 @@ static Int32 mixAudio(void *param, Int16 *buffer, UInt32 count);
 - (void)resetEmulation
 {
     actionEmuResetSoft();
+}
+
+- (void)fastForward:(BOOL)flag
+{
+    [super fastForward:flag];
+    
+    properties->emulation.speed = flag ? 100 : 50;
+    emulatorSetFrequency(properties->emulation.speed, NULL);
 }
 
 - (oneway void)didPushMSXJoystickButton:(OEMSXJoystickButton)button
