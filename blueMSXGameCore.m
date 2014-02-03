@@ -135,6 +135,13 @@ static Int32 mixAudio(void *param, Int16 *buffer, UInt32 count);
                 *stop = YES;
             }];
         }
+        else
+        {
+            [fm createDirectoryAtPath:[customMachinesPath path]
+          withIntermediateDirectories:YES
+                           attributes:nil
+                                error:NULL];
+        }
     }
     
     properties = propCreate(0, 0, P_KBD_EUROPEAN, 0, "");
