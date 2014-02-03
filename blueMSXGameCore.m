@@ -101,12 +101,48 @@ static Int32 mixAudio(void *param, Int16 *buffer, UInt32 count);
 
 - (void)initializeEmulator
 {
+    NSBundle *bundle = [NSBundle bundleWithIdentifier:@"org.openemu.blueMSX"];
+    NSString *resourcePath = [bundle resourcePath];
+    
+    __block NSString *machinesPath = [resourcePath stringByAppendingPathComponent:@"Machines"];
+    __block NSString *machineName = @"MSX2 - C-BIOS";
+    
+    NSFileManager* fm = [NSFileManager defaultManager];
+    NSURL *supportRoot = [[fm URLsForDirectory:NSApplicationSupportDirectory
+                                     inDomains:NSUserDomainMask] lastObject];
+    
+    if (supportRoot)
+    {
+        NSURL *supportPath = [supportRoot URLByAppendingPathComponent:[bundle bundleIdentifier]];
+        NSURL *customMachinesPath = [supportPath URLByAppendingPathComponent:@"Machines"];
+        
+        if ([customMachinesPath checkResourceIsReachableAndReturnError:NULL] == YES)
+        {
+            NSArray *customMachines = [fm contentsOfDirectoryAtURL:customMachinesPath
+                                        includingPropertiesForKeys:nil
+                                                           options:NSDirectoryEnumerationSkipsHiddenFiles
+                                                             error:NULL];
+            
+            [customMachines enumerateObjectsUsingBlock:^(id obj, NSUInteger idx, BOOL *stop)
+            {
+                NSString *customMachine = [[obj lastPathComponent] stringByDeletingPathExtension];
+                
+                machinesPath = [customMachinesPath path];
+                machineName = customMachine;
+                
+                NSLog(@"blueMSX: Will use custom machine \"%@\"", customMachine);
+
+                *stop = YES;
+            }];
+        }
+    }
+    
     properties = propCreate(0, 0, P_KBD_EUROPEAN, 0, "");
     
-    NSString *resourcePath = [[NSBundle bundleWithIdentifier:@"org.openemu.blueMSX"] resourcePath];
-    
     // Set machine name
-    strncpy(properties->emulation.machineName, "MSX2 - C-BIOS", PROP_MAXPATH - 1);
+    machineSetDirectory([machinesPath UTF8String]);
+    strncpy(properties->emulation.machineName,
+            [machineName UTF8String], PROP_MAXPATH - 1);
     
     // Set up properties
     properties->emulation.speed = 50;
@@ -229,7 +265,6 @@ static Int32 mixAudio(void *param, Int16 *buffer, UInt32 count);
     tapeSetReadOnly(properties->cassette.readOnly);
     
     // Misc. initialization
-    machineSetDirectory([[resourcePath stringByAppendingPathComponent:@"Machines"] UTF8String]);
     emulatorInit(properties, mixer);
     actionInit(video, properties, mixer);
     emulatorRestartSound();
