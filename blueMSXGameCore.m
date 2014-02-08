@@ -450,7 +450,7 @@ static Int32 mixAudio(void *param, Int16 *buffer, UInt32 count);
 
 #pragma mark - OE I/O
 
-- (BOOL)loadFileAtPath:(NSString *)path
+- (BOOL)loadFileAtPath:(NSString *)path error:(NSError **)error
 {
     fileToLoad = nil;
     romTypeToLoad = ROM_UNKNOWN;
