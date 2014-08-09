@@ -1,9 +1,9 @@
 /*****************************************************************************
 ** $Source: /cygdrive/d/Private/_SVNROOT/bluemsx/blueMSX/Src/Arch/ArchInput.h,v $
 **
-** $Revision: 72 $
+** $Revision: 1.7 $
 **
-** $Date: 2012-10-19 17:09:05 -0700 (Fri, 19 Oct 2012) $
+** $Date: 2008-03-30 18:38:39 $
 **
 ** More info: http://www.bluemsx.com
 **
@@ -43,6 +43,7 @@ void  archPollInput();
 void  archKeyboardSetSelectedKey(int keyCode);
 char* archGetSelectedKey();
 char* archGetMappedKey();
+UInt8 archJoystickGetState(int joystickNo);
 int   archKeyboardIsKeyConfigured(int msxKeyCode);
 int   archKeyboardIsKeySelected(int msxKeyCode);
 char* archKeyconfigSelectedKeyTitle();

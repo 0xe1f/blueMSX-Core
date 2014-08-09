@@ -101,6 +101,9 @@ static Int32 mixAudio(void *param, Int16 *buffer, UInt32 count);
 
 - (void)initializeEmulator
 {
+    NSLog(@"sleeping - pid %d",  [[NSProcessInfo processInfo] processIdentifier]);
+    [NSThread sleepForTimeInterval:8];
+    NSLog(@"done");
     NSBundle *bundle = [NSBundle bundleWithIdentifier:@"org.openemu.blueMSX"];
     NSString *resourcePath = [bundle resourcePath];
     
@@ -294,7 +297,7 @@ static Int32 mixAudio(void *param, Int16 *buffer, UInt32 count);
     emulatorStart(NULL);
     
     if (fileToLoad)
-        insertCartridge(properties, 0, [fileToLoad UTF8String], NULL, romTypeToLoad, 0);
+        tryLaunchUnknownFile(properties, [fileToLoad UTF8String], YES);
 }
 
 - (void)stopEmulation

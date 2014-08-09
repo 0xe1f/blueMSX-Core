@@ -1,9 +1,9 @@
 /*****************************************************************************
 ** $Source: /cvsroot/bluemsx/blueMSX/Src/SoundChips/MsxPsg.c,v $
 **
-** $Revision: 73 $
+** $Revision: 1.15 $
 **
-** $Date: 2012-10-19 17:10:16 -0700 (Fri, 19 Oct 2012) $
+** $Date: 2008/09/09 04:40:32 $
 **
 ** More info: http://www.bluemsx.com
 **
@@ -29,6 +29,7 @@
 #include "Board.h"
 #include "AY8910.h"
 #include "JoystickPort.h"
+#include "SaveState.h"
 #include "DeviceManager.h"
 #include "Led.h"
 #include "Switches.h"
@@ -75,27 +76,41 @@ static void joystickPortHandler(MsxPsg* msxPsg, int port, JoystickPortType type)
     case JOYSTICK_PORT_NONE:
         msxPsg->devFun[port] = NULL;
         break;
+#ifndef EXCLUDE_JOYSTICK_PORT_GUNSTICK
     case JOYSTICK_PORT_GUNSTICK:
         msxPsg->devFun[port] = msxGunstickCreate();
         break;
+#endif
+#ifndef EXCLUDE_JOYSTICK_PORT_ASCIILASER
     case JOYSTICK_PORT_ASCIILASER:
         msxPsg->devFun[port] = msxAsciiLaserCreate();
         break;
+#endif
+#ifndef EXCLUDE_JOYSTICK_PORT_JOYSTICK
     case JOYSTICK_PORT_JOYSTICK:
         msxPsg->devFun[port] = msxJoystickCreate(port);
         break;
+#endif
+#ifndef EXCLUDE_JOYSTICK_PORT_MOUSE
     case JOYSTICK_PORT_MOUSE:
         msxPsg->devFun[port] = msxMouseCreate();
         break;
+#endif
+#ifndef EXCLUDE_JOYSTICK_PORT_TETRIS2DONGLE
     case JOYSTICK_PORT_TETRIS2DONGLE:
         msxPsg->devFun[port] = msxTetrisDongleCreate();
         break;
+#endif
+#ifndef EXCLUDE_JOYSTICK_PORT_MAGICKEYDONGLE
     case JOYSTICK_PORT_MAGICKEYDONGLE:
         msxPsg->devFun[port] = magicKeyDongleCreate();
         break;
+#endif
+#ifndef EXCLUDE_JOYSTICK_PORT_ARKANOID_PAD
     case JOYSTICK_PORT_ARKANOID_PAD:
         msxPsg->devFun[port] = msxArkanoidPadCreate();
         break;
+#endif
     }
 }
 
@@ -112,6 +127,8 @@ static UInt8 peek(MsxPsg* msxPsg, UInt16 address)
 
 static UInt8 read(MsxPsg* msxPsg, UInt16 address)
 {
+    UInt8 casdat = 0;
+
     if (address & 1) {
     	/* r15 */
         return msxPsg->registers[1];
@@ -142,8 +159,6 @@ static UInt8 read(MsxPsg* msxPsg, UInt16 address)
         }
 
 #if 0
-        UInt8 casdat = 0;
-        
         // COmment out until cassette wave is working
         tapeRead(&casdat);
         state |= (casdat) ? 0:0x80;
@@ -177,6 +192,13 @@ static void write(MsxPsg* msxPsg, UInt16 address, UInt8 value)
 
 static void saveState(MsxPsg* msxPsg)
 {
+    // dink: fix for certain games where buttons are stuck after reload of state
+    SaveState* state = saveStateOpenForWrite("MsxPsg");
+    saveStateSet(state, "currentport", msxPsg->currentPort);
+    saveStateSet(state, "registers0", msxPsg->registers[0]);
+    saveStateSet(state, "registers1", msxPsg->registers[1]);
+    saveStateClose(state);
+
     if (msxPsg->devFun[0] != NULL && msxPsg->devFun[0]->saveState != NULL) {
 	    msxPsg->devFun[0]->saveState(msxPsg->devFun[0]);
     }
@@ -189,13 +211,20 @@ static void saveState(MsxPsg* msxPsg)
 
 static void loadState(MsxPsg* msxPsg)
 {
+    // dink: fix for certain games where buttons are stuck after reload of state
+    SaveState* state = saveStateOpenForRead("MsxPsg");
+    msxPsg->currentPort =          saveStateGet(state, "currentport", 0);
+    msxPsg->registers[0] = (UInt8) saveStateGet(state, "registers0", 0);
+    msxPsg->registers[1] = (UInt8) saveStateGet(state, "registers1", 0);
+    saveStateClose(state);
+
     if (msxPsg->devFun[0] != NULL && msxPsg->devFun[0]->loadState != NULL) {
 	    msxPsg->devFun[0]->loadState(msxPsg->devFun[0]);
     }
     if (msxPsg->devFun[1] != NULL && msxPsg->devFun[1]->loadState != NULL) {
 	    msxPsg->devFun[1]->loadState(msxPsg->devFun[1]);
     }
-    
+
     ay8910LoadState(msxPsg->ay8910);
 }
 
@@ -241,12 +270,7 @@ void msxPsgRegisterCassetteRead(MsxPsg* msxPsg, CassetteCb cb, void* ref)
 
 MsxPsg* msxPsgCreate(PsgType type, int stereo, int* pan, int maxPorts)
 {
-    DeviceCallbacks callbacks = {
-        (DeviceCallback)destroy,
-        (DeviceCallback)reset,
-        (DeviceCallback)saveState,
-        (DeviceCallback)loadState
-    };
+    DeviceCallbacks callbacks = { destroy, reset, saveState, loadState };
     MsxPsg* msxPsg = (MsxPsg*)calloc(1, sizeof(MsxPsg));
 
     msxPsg->ay8910 = ay8910Create(boardGetMixer(), AY8910_MSX, type, stereo, pan);
@@ -254,9 +278,9 @@ MsxPsg* msxPsgCreate(PsgType type, int stereo, int* pan, int maxPorts)
 
     msxPsg->dac = dacCreate(boardGetMixer(), DAC_MONO);
 
-    ay8910SetIoPort(msxPsg->ay8910, (AY8910ReadCb)read, (AY8910ReadCb)peek, (AY8910WriteCb)write, msxPsg);
+    ay8910SetIoPort(msxPsg->ay8910, read, peek, write, msxPsg);
 
-    joystickPortUpdateHandlerRegister((JoystickPortUpdateHandler)joystickPortHandler, msxPsg);
+    joystickPortUpdateHandlerRegister(joystickPortHandler, msxPsg);
 
     msxPsg->deviceHandle = deviceManagerRegister(ROM_UNKNOWN, &callbacks, msxPsg);
 
