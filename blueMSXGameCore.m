@@ -45,6 +45,10 @@
 #include "PrinterIO.h"
 #include "InputEvent.h"
 
+#import "Emulator.h"
+#include "ArchEvent.h"
+
+
 #define SCREEN_BUFFER_WIDTH 320
 #define SCREEN_WIDTH        272
 #define SCREEN_DEPTH         32
@@ -101,9 +105,6 @@ static Int32 mixAudio(void *param, Int16 *buffer, UInt32 count);
 
 - (void)initializeEmulator
 {
-    NSLog(@"sleeping - pid %d",  [[NSProcessInfo processInfo] processIdentifier]);
-    [NSThread sleepForTimeInterval:8];
-    NSLog(@"done");
     NSBundle *bundle = [NSBundle bundleWithIdentifier:@"org.openemu.blueMSX"];
     NSString *resourcePath = [bundle resourcePath];
     
@@ -293,11 +294,8 @@ static Int32 mixAudio(void *param, Int16 *buffer, UInt32 count);
                                                     error:NULL];
     
     boardSetDirectory([[self batterySavesDirectoryPath] UTF8String]);
-    
-    emulatorStart(NULL);
-    
-    if (fileToLoad)
-        tryLaunchUnknownFile(properties, [fileToLoad UTF8String], YES);
+
+    insertCartridge(properties, properties->cartridge.quickStartDrive, [fileToLoad UTF8String], NULL, ROM_UNKNOWN, YES);
 }
 
 - (void)stopEmulation
@@ -476,7 +474,7 @@ static Int32 mixAudio(void *param, Int16 *buffer, UInt32 count);
     emulatorSuspend();
     boardSaveState([fileName UTF8String], 1);
     emulatorResume();
-    
+
     return YES;
 }
 
