@@ -480,10 +480,12 @@ static Int32 mixAudio(void *param, Int16 *buffer, UInt32 count);
 
 - (BOOL)loadStateFromFileAtPath:(NSString *)fileName
 {
-    emulatorSuspend();
-    emulatorStop();
-    emulatorStart([fileName UTF8String]);
-    
+    dispatch_async(dispatch_get_main_queue(), ^{
+        emulatorSuspend();
+        emulatorStop();
+        emulatorStart([fileName UTF8String]);
+    });
+
     return YES;
 }
 
