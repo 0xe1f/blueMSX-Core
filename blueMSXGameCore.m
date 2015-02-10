@@ -473,7 +473,7 @@ static Int32 mixAudio(void *param, Int16 *buffer, UInt32 count);
 
 - (BOOL)loadStateFromFileAtPath:(NSString *)fileName
 {
-    dispatch_async(dispatch_get_main_queue(), ^{
+    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, 200 * NSEC_PER_MSEC), dispatch_get_main_queue(), ^{
         emulatorSuspend();
         emulatorStop();
         emulatorStart([fileName UTF8String]);
