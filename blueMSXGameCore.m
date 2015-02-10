@@ -88,8 +88,6 @@ static Int32 mixAudio(void *param, Int16 *buffer, UInt32 count);
                                                        height:SCREEN_HEIGHT
                                                         depth:SCREEN_DEPTH
                                                          zoom:1];
-        
-        [self initializeEmulator];
     }
 
     return self;
@@ -105,47 +103,40 @@ static Int32 mixAudio(void *param, Int16 *buffer, UInt32 count);
 
 - (void)initializeEmulator
 {
-    NSBundle *bundle = [NSBundle bundleWithIdentifier:@"org.openemu.blueMSX"];
-    NSString *resourcePath = [bundle resourcePath];
+    NSString *resourcePath = [[[self owner] bundle] resourcePath];
     
     __block NSString *machinesPath = [resourcePath stringByAppendingPathComponent:@"Machines"];
     __block NSString *machineName = @"MSX2 - C-BIOS";
     
-    NSFileManager* fm = [NSFileManager defaultManager];
-    NSURL *supportRoot = [[fm URLsForDirectory:NSApplicationSupportDirectory
-                                     inDomains:NSUserDomainMask] lastObject];
-    
-    if (supportRoot)
-    {
-        NSURL *supportPath = [supportRoot URLByAppendingPathComponent:[bundle bundleIdentifier]];
-        NSURL *customMachinesPath = [supportPath URLByAppendingPathComponent:@"Machines"];
-        
-        if ([customMachinesPath checkResourceIsReachableAndReturnError:NULL] == YES)
-        {
-            NSArray *customMachines = [fm contentsOfDirectoryAtURL:customMachinesPath
-                                        includingPropertiesForKeys:nil
-                                                           options:NSDirectoryEnumerationSkipsHiddenFiles
-                                                             error:NULL];
-            
-            [customMachines enumerateObjectsUsingBlock:^(id obj, NSUInteger idx, BOOL *stop)
-            {
-                NSString *customMachine = [[obj lastPathComponent] stringByDeletingPathExtension];
-                
-                machinesPath = [customMachinesPath path];
-                machineName = customMachine;
-                
-                NSLog(@"blueMSX: Will use custom machine \"%@\"", customMachine);
+    NSFileManager *fm = [NSFileManager defaultManager];
+    NSURL *supportPath = [NSURL fileURLWithPath:[self supportDirectoryPath]];
+    NSURL *customMachinesPath = [supportPath URLByAppendingPathComponent:@"Machines"];
 
-                *stop = YES;
-            }];
-        }
-        else
+    if ([customMachinesPath checkResourceIsReachableAndReturnError:NULL] == YES)
+    {
+        NSArray *customMachines = [fm contentsOfDirectoryAtURL:customMachinesPath
+                                    includingPropertiesForKeys:nil
+                                                       options:NSDirectoryEnumerationSkipsHiddenFiles
+                                                         error:NULL];
+        
+        [customMachines enumerateObjectsUsingBlock:^(id obj, NSUInteger idx, BOOL *stop)
         {
-            [fm createDirectoryAtPath:[customMachinesPath path]
-          withIntermediateDirectories:YES
-                           attributes:nil
-                                error:NULL];
-        }
+            NSString *customMachine = [[obj lastPathComponent] stringByDeletingPathExtension];
+            
+            machinesPath = [customMachinesPath path];
+            machineName = customMachine;
+            
+            NSLog(@"blueMSX: Will use custom machine \"%@\"", customMachine);
+
+            *stop = YES;
+        }];
+    }
+    else
+    {
+        [fm createDirectoryAtURL:customMachinesPath
+      withIntermediateDirectories:YES
+                       attributes:nil
+                            error:NULL];
     }
     
     properties = propCreate(0, 0, P_KBD_EUROPEAN, 0, "");
@@ -453,6 +444,8 @@ static Int32 mixAudio(void *param, Int16 *buffer, UInt32 count);
 
 - (BOOL)loadFileAtPath:(NSString *)path error:(NSError **)error
 {
+    [self initializeEmulator];
+    
     fileToLoad = nil;
     romTypeToLoad = ROM_UNKNOWN;
     
