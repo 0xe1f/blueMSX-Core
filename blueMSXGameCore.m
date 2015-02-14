@@ -25,10 +25,9 @@
  */
 
 #import "blueMSXGameCore.h"
-#import "OEMSXSystemResponderClient.h"
-#import "OpenEmuBase/OERingBuffer.h"
-
+#import <OpenEmuBase/OERingBuffer.h>
 #import <OpenGL/gl.h>
+#import "OEMSXSystemResponderClient.h"
 
 #include "ArchInput.h"
 #include "ArchNotifications.h"
@@ -48,6 +47,11 @@
 #import "Emulator.h"
 #include "ArchEvent.h"
 
+#include "Properties.h"
+#include "VideoRender.h"
+#include "AudioMixer.h"
+#include "CMCocoaBuffer.h"
+
 
 #define SCREEN_BUFFER_WIDTH 320
 #define SCREEN_WIDTH        272
@@ -62,8 +66,17 @@
 #define virtualCodeUnset(eventCode) self->virtualCodeMap[eventCode] = 0
 #define virtualCodeClear() memset(self->virtualCodeMap, 0, sizeof(self->virtualCodeMap));
 
-@interface blueMSXGameCore()
+@interface blueMSXGameCore () <OEMSXSystemResponderClient>
 {
+    int virtualCodeMap[256];
+    int currentScreenIndex;
+    NSString *fileToLoad;
+    RomType romTypeToLoad;
+    Properties *properties;
+    Video *video;
+    Mixer *mixer;
+    CMCocoaBuffer *screens[2];
+    NSLock *bufferLock;
 }
 
 - (void)initializeEmulator;
@@ -278,8 +291,9 @@ static Int32 mixAudio(void *param, Int16 *buffer, UInt32 count);
     
     // propertiesSetDirectory("", "");
     // tapeSetDirectory("/Cassettes", "");
-    
-    [[NSFileManager defaultManager] createDirectoryAtPath:[self batterySavesDirectoryPath]
+
+    NSURL *batterySavesPath = [NSURL fileURLWithPath:[self batterySavesDirectoryPath]];
+    [[NSFileManager defaultManager] createDirectoryAtURL:batterySavesPath
                               withIntermediateDirectories:YES
                                                attributes:nil
                                                     error:NULL];
@@ -497,7 +511,7 @@ static Int32 mixAudio(void *param, Int16 *buffer, UInt32 count);
 
 - (OEIntSize)aspectSize
 {
-    return (OEIntSize){ 17, 15 };
+    return OEIntSizeMake(17, 15);
 }
 
 - (const void *)videoBuffer
@@ -522,19 +536,14 @@ static Int32 mixAudio(void *param, Int16 *buffer, UInt32 count);
 
 #pragma mark - OE Audio
 
-- (double)audioSampleRateForBuffer:(NSUInteger)buffer
+- (double)audioSampleRate
 {
     return SOUND_SAMPLE_RATE;
 }
 
-- (NSUInteger)channelCountForBuffer:(NSUInteger)buffer
+- (NSUInteger)channelCount
 {
     return 2;
-}
-
-- (NSUInteger)audioBufferCount
-{
-    return 1;
 }
 
 #pragma mark - Audio
