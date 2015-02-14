@@ -286,7 +286,7 @@ static Int32 mixAudio(void *param, Int16 *buffer, UInt32 count);
     
     boardSetDirectory([[self batterySavesDirectoryPath] UTF8String]);
 
-    insertCartridge(properties, properties->cartridge.quickStartDrive, [fileToLoad UTF8String], NULL, ROM_UNKNOWN, YES);
+    tryLaunchUnknownFile(properties, [fileToLoad UTF8String], NO);
 }
 
 - (void)stopEmulation
