@@ -20,8 +20,8 @@ What sort of works
 
 * Stability - the emulator isn't very stable
 
-What doesn't work
------------------
+What's unsupported
+------------------
 
 * Disks
 * Cassette tapes
